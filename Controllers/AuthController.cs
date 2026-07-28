@@ -51,9 +51,15 @@ namespace TaskManagerAPI.Controllers
             var normalizedUsername = request.Username.Trim().ToLowerInvariant();
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Username == normalizedUsername);
 
-            if (user is null || !PasswordHasher.Verify(request.Password, user.PasswordHash))
+            if (user is null || !PasswordHasher.Verify(request.Password, user.PasswordHash, out var needsRehash))
             {
                 return Unauthorized("Credenciais inválidas.");
+            }
+
+            if (needsRehash)
+            {
+                user.PasswordHash = PasswordHasher.Hash(request.Password);
+                await _context.SaveChangesAsync();
             }
 
             var token = GenerateJwtToken(user);
