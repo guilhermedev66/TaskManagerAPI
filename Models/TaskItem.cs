@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace TaskManagerAPI.Models
 {
@@ -22,5 +23,8 @@ namespace TaskManagerAPI.Models
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? DueDate { get; set; }
         public bool IsCompleted { get; set; }
+
+        [JsonIgnore]
+        public int UserId { get; set; }
     }
 }
