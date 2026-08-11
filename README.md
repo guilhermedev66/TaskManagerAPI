@@ -35,21 +35,26 @@ A ideia foi simular um fluxo que acontece no dia a dia: cadastro e login, geraç
 
 ## Configuracao
 
-As configuracoes principais estao em `appsettings.json`:
+As configuracoes nao sensiveis estao em `appsettings.json`:
 
 ```json
 "ConnectionStrings": {
   "DefaultConnection": "Data Source=taskmanager.db"
 },
 "Jwt": {
-  "Key": "super-secret-key-change-this-in-production",
   "Issuer": "TaskManagerAPI",
   "Audience": "TaskManagerAPIUsers",
   "ExpiresInMinutes": 60
 }
 ```
 
-> Em producao, altere a chave JWT para um valor forte e seguro.
+A chave de assinatura do JWT (`Jwt:Key`) nao fica no `appsettings.json` nem versionada no Git. Configure localmente com [user-secrets](https://learn.microsoft.com/aspnet/core/security/app-secrets):
+
+```bash
+dotnet user-secrets set "Jwt:Key" "uma-chave-aleatoria-forte-com-pelo-menos-32-bytes"
+```
+
+Sem esse segredo configurado, a API falha ao iniciar com `Jwt:Key não configurado.`. Em producao, defina `Jwt:Key` via variavel de ambiente (`Jwt__Key`) ou outro cofre de segredo do ambiente de deploy — nunca em arquivo versionado.
 
 ## Como Executar
 

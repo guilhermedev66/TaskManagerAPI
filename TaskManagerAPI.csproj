@@ -1,10 +1,11 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <DefaultItemExcludes>$(DefaultItemExcludes);TaskManagerAPI.Tests/**</DefaultItemExcludes>
+    <UserSecretsId>de2bec49-2c39-467d-a7c6-2f1b92644341</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
