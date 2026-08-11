@@ -31,7 +31,9 @@ namespace TaskManagerAPI.Controllers
             var userExists = await _context.Users.AnyAsync(u => u.Username == normalizedUsername);
             if (userExists)
             {
-                return Conflict("Usuário já existe.");
+                return Problem(
+                    detail: "Usuário já existe.",
+                    statusCode: StatusCodes.Status409Conflict);
             }
 
             var user = new User
@@ -54,7 +56,9 @@ namespace TaskManagerAPI.Controllers
 
             if (user is null || !PasswordHasher.Verify(request.Password, user.PasswordHash, out var needsRehash))
             {
-                return Unauthorized("Credenciais inválidas.");
+                return Problem(
+                    detail: "Credenciais inválidas.",
+                    statusCode: StatusCodes.Status401Unauthorized);
             }
 
             if (needsRehash)

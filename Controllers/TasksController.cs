@@ -85,7 +85,9 @@ namespace TaskManagerAPI.Controllers
 
             if (string.IsNullOrWhiteSpace(title))
             {
-                return BadRequest("O parâmetro 'title' é obrigatório.");
+                return Problem(
+                    detail: "O parâmetro 'title' é obrigatório.",
+                    statusCode: StatusCodes.Status400BadRequest);
             }
 
             var normalizedTitle = title.Trim().ToLowerInvariant();
@@ -125,7 +127,9 @@ namespace TaskManagerAPI.Controllers
 
             if (request.DueDate.HasValue && request.DueDate.Value < DateTime.UtcNow)
             {
-                return BadRequest("DueDate não pode estar no passado.");
+                return Problem(
+                    detail: "DueDate não pode estar no passado.",
+                    statusCode: StatusCodes.Status400BadRequest);
             }
 
             var task = new TaskItem
@@ -154,7 +158,9 @@ namespace TaskManagerAPI.Controllers
 
             if (request.DueDate.HasValue && request.DueDate.Value < DateTime.UtcNow && !request.IsCompleted)
             {
-                return BadRequest("DueDate não pode estar no passado para tarefas pendentes.");
+                return Problem(
+                    detail: "DueDate não pode estar no passado para tarefas pendentes.",
+                    statusCode: StatusCodes.Status400BadRequest);
             }
 
             var existingTask = await _context.Tasks.FirstOrDefaultAsync(t => t.Id == id && t.UserId == userId);

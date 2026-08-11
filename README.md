@@ -181,6 +181,36 @@ Exemplo de body:
 - `CreatedAt` definido automaticamente no servidor
 - `DueDate` opcional
 
+## Formato de Erros
+
+Respostas de erro (400, 401, 404, 409) usam o formato nativo [ProblemDetails](https://learn.microsoft.com/aspnet/core/web-api/handle-errors) do ASP.NET Core (`Content-Type: application/problem+json`), em vez de string solta ou corpo vazio.
+
+Erro pontual (ex.: usuario duplicado, credenciais invalidas, DueDate no passado):
+
+```json
+{
+  "type": "https://tools.ietf.org/html/rfc9110#section-15.5.10",
+  "title": "Conflict",
+  "status": 409,
+  "detail": "Usuário já existe."
+}
+```
+
+Erro de validacao de campo (DataAnnotations em `Username`, `Title`, etc.) usa `ValidationProblemDetails`, com um dicionario `errors` por campo:
+
+```json
+{
+  "type": "https://tools.ietf.org/html/rfc9110#section-15.5.1",
+  "title": "One or more validation errors occurred.",
+  "status": 400,
+  "errors": {
+    "Username": ["The field Username must be a string with a minimum length of 3."]
+  }
+}
+```
+
+Tarefa de outro usuario continua retornando `404 Not Found` (nao `403`), pra nao revelar que o recurso existe — ver [Regras da Entidade Task](#regras-da-entidade-task) e o isolamento por usuario no `TasksController`.
+
 ## Migrations Criadas
 
 - `InitialCreate`
