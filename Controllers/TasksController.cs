@@ -1,9 +1,8 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using TaskManagerAPI.Data;
 using TaskManagerAPI.Models;
+using TaskManagerAPI.Services;
 
 namespace TaskManagerAPI.Controllers
 {
@@ -12,11 +11,11 @@ namespace TaskManagerAPI.Controllers
     [Route("api/[controller]")]
     public class TasksController : ControllerBase
     {
-        private readonly AppDbContext _context;
+        private readonly TaskService _taskService;
 
-        public TasksController(AppDbContext context)
+        public TasksController(TaskService taskService)
         {
-            _context = context;
+            _taskService = taskService;
         }
 
         private bool TryGetCurrentUserId(out int userId)
@@ -26,57 +25,43 @@ namespace TaskManagerAPI.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<TaskItem>>> GetTasks()
+        public async Task<ActionResult<IEnumerable<TaskItem>>> GetTasks(CancellationToken cancellationToken)
         {
             if (!TryGetCurrentUserId(out var userId))
             {
                 return Unauthorized();
             }
 
-            var tasks = await _context.Tasks
-                .AsNoTracking()
-                .Where(t => t.UserId == userId)
-                .OrderByDescending(t => t.CreatedAt)
-                .ToListAsync();
+            var tasks = await _taskService.GetAllAsync(userId, cancellationToken);
             return Ok(tasks);
         }
 
         [HttpGet("completed")]
-        public async Task<ActionResult<IEnumerable<TaskItem>>> GetCompletedTasks()
+        public async Task<ActionResult<IEnumerable<TaskItem>>> GetCompletedTasks(CancellationToken cancellationToken)
         {
             if (!TryGetCurrentUserId(out var userId))
             {
                 return Unauthorized();
             }
 
-            var tasks = await _context.Tasks
-                .AsNoTracking()
-                .Where(t => t.UserId == userId && t.IsCompleted)
-                .OrderByDescending(t => t.CreatedAt)
-                .ToListAsync();
-
+            var tasks = await _taskService.GetCompletedAsync(userId, cancellationToken);
             return Ok(tasks);
         }
 
         [HttpGet("pending")]
-        public async Task<ActionResult<IEnumerable<TaskItem>>> GetPendingTasks()
+        public async Task<ActionResult<IEnumerable<TaskItem>>> GetPendingTasks(CancellationToken cancellationToken)
         {
             if (!TryGetCurrentUserId(out var userId))
             {
                 return Unauthorized();
             }
 
-            var tasks = await _context.Tasks
-                .AsNoTracking()
-                .Where(t => t.UserId == userId && !t.IsCompleted)
-                .OrderByDescending(t => t.CreatedAt)
-                .ToListAsync();
-
+            var tasks = await _taskService.GetPendingAsync(userId, cancellationToken);
             return Ok(tasks);
         }
 
         [HttpGet("search")]
-        public async Task<ActionResult<IEnumerable<TaskItem>>> SearchTasksByTitle([FromQuery] string title)
+        public async Task<ActionResult<IEnumerable<TaskItem>>> SearchTasksByTitle([FromQuery] string title, CancellationToken cancellationToken)
         {
             if (!TryGetCurrentUserId(out var userId))
             {
@@ -90,25 +75,19 @@ namespace TaskManagerAPI.Controllers
                     statusCode: StatusCodes.Status400BadRequest);
             }
 
-            var normalizedTitle = title.Trim().ToLowerInvariant();
-            var tasks = await _context.Tasks
-                .AsNoTracking()
-                .Where(t => t.UserId == userId && EF.Functions.Like(t.Title, $"%{normalizedTitle}%"))
-                .OrderByDescending(t => t.CreatedAt)
-                .ToListAsync();
-
+            var tasks = await _taskService.SearchByTitleAsync(userId, title, cancellationToken);
             return Ok(tasks);
         }
 
         [HttpGet("{id:int}")]
-        public async Task<ActionResult<TaskItem>> GetTaskById(int id)
+        public async Task<ActionResult<TaskItem>> GetTaskById(int id, CancellationToken cancellationToken)
         {
             if (!TryGetCurrentUserId(out var userId))
             {
                 return Unauthorized();
             }
 
-            var task = await _context.Tasks.AsNoTracking().FirstOrDefaultAsync(t => t.Id == id && t.UserId == userId);
+            var task = await _taskService.GetByIdAsync(userId, id, cancellationToken);
             if (task is null)
             {
                 return NotFound();
@@ -118,7 +97,7 @@ namespace TaskManagerAPI.Controllers
         }
 
         [HttpPost]
-        public async Task<ActionResult<TaskItem>> CreateTask([FromBody] CreateTaskRequest request)
+        public async Task<ActionResult<TaskItem>> CreateTask([FromBody] CreateTaskRequest request, CancellationToken cancellationToken)
         {
             if (!TryGetCurrentUserId(out var userId))
             {
@@ -132,24 +111,12 @@ namespace TaskManagerAPI.Controllers
                     statusCode: StatusCodes.Status400BadRequest);
             }
 
-            var task = new TaskItem
-            {
-                Title = request.Title.Trim(),
-                Description = request.Description?.Trim(),
-                Priority = request.Priority,
-                DueDate = request.DueDate,
-                CreatedAt = DateTime.UtcNow,
-                IsCompleted = false,
-                UserId = userId
-            };
-
-            _context.Tasks.Add(task);
-            await _context.SaveChangesAsync();
+            var task = await _taskService.CreateAsync(userId, request, cancellationToken);
             return CreatedAtAction(nameof(GetTaskById), new { id = task.Id }, task);
         }
 
         [HttpPut("{id:int}")]
-        public async Task<IActionResult> UpdateTask(int id, [FromBody] UpdateTaskRequest request)
+        public async Task<IActionResult> UpdateTask(int id, [FromBody] UpdateTaskRequest request, CancellationToken cancellationToken)
         {
             if (!TryGetCurrentUserId(out var userId))
             {
@@ -163,38 +130,29 @@ namespace TaskManagerAPI.Controllers
                     statusCode: StatusCodes.Status400BadRequest);
             }
 
-            var existingTask = await _context.Tasks.FirstOrDefaultAsync(t => t.Id == id && t.UserId == userId);
-            if (existingTask is null)
+            var updated = await _taskService.UpdateAsync(userId, id, request, cancellationToken);
+            if (!updated)
             {
                 return NotFound();
             }
-
-            existingTask.Title = request.Title.Trim();
-            existingTask.Description = request.Description?.Trim();
-            existingTask.Priority = request.Priority;
-            existingTask.DueDate = request.DueDate;
-            existingTask.IsCompleted = request.IsCompleted;
-            await _context.SaveChangesAsync();
 
             return NoContent();
         }
 
         [HttpDelete("{id:int}")]
-        public async Task<IActionResult> DeleteTask(int id)
+        public async Task<IActionResult> DeleteTask(int id, CancellationToken cancellationToken)
         {
             if (!TryGetCurrentUserId(out var userId))
             {
                 return Unauthorized();
             }
 
-            var task = await _context.Tasks.FirstOrDefaultAsync(t => t.Id == id && t.UserId == userId);
-            if (task is null)
+            var deleted = await _taskService.DeleteAsync(userId, id, cancellationToken);
+            if (!deleted)
             {
                 return NotFound();
             }
 
-            _context.Tasks.Remove(task);
-            await _context.SaveChangesAsync();
             return NoContent();
         }
     }

@@ -23,11 +23,12 @@ A ideia foi simular um fluxo que acontece no dia a dia: cadastro e login, geraç
 
 ## Estrutura do Projeto
 
-- `Controllers/` - Endpoints da API (`AuthController`, `TasksController`)
+- `Controllers/` - Endpoints da API (`AuthController`, `TasksController`), responsaveis por HTTP, autenticacao, entrada e saida
+- `Services/` - Regras de negocio e acesso a dados (`TaskService`), isolado de HTTP/ProblemDetails
 - `Models/` - Entidades e DTOs
 - `Data/` - `AppDbContext`
 - `Migrations/` - Historico de migrations do EF Core
-- `Security/` - Hash de senha simples
+- `Security/` - Hash de senha, opcoes e validacao de JWT
 
 ## Requisitos
 
