@@ -3,6 +3,7 @@ using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using TaskManagerAPI.Data;
 using TaskManagerAPI.Models;
@@ -15,12 +16,12 @@ namespace TaskManagerAPI.Controllers
     public class AuthController : ControllerBase
     {
         private readonly AppDbContext _context;
-        private readonly IConfiguration _configuration;
+        private readonly JwtOptions _jwtOptions;
 
-        public AuthController(AppDbContext context, IConfiguration configuration)
+        public AuthController(AppDbContext context, IOptions<JwtOptions> jwtOptions)
         {
             _context = context;
-            _configuration = configuration;
+            _jwtOptions = jwtOptions.Value;
         }
 
         [HttpPost("register")]
@@ -68,12 +69,6 @@ namespace TaskManagerAPI.Controllers
 
         private string GenerateJwtToken(User user)
         {
-            var jwtSettings = _configuration.GetSection("Jwt");
-            var key = jwtSettings["Key"] ?? throw new InvalidOperationException("Jwt:Key não configurado.");
-            var issuer = jwtSettings["Issuer"] ?? throw new InvalidOperationException("Jwt:Issuer não configurado.");
-            var audience = jwtSettings["Audience"] ?? throw new InvalidOperationException("Jwt:Audience não configurado.");
-            var expiresMinutes = int.TryParse(jwtSettings["ExpiresInMinutes"], out var minutes) ? minutes : 60;
-
             var claims = new[]
             {
                 new Claim(JwtRegisteredClaimNames.Sub, user.Username),
@@ -82,14 +77,14 @@ namespace TaskManagerAPI.Controllers
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
             };
 
-            var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key));
+            var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtOptions.Key));
             var creds = new SigningCredentials(signingKey, SecurityAlgorithms.HmacSha256);
 
             var token = new JwtSecurityToken(
-                issuer: issuer,
-                audience: audience,
+                issuer: _jwtOptions.Issuer,
+                audience: _jwtOptions.Audience,
                 claims: claims,
-                expires: DateTime.UtcNow.AddMinutes(expiresMinutes),
+                expires: DateTime.UtcNow.AddMinutes(_jwtOptions.ExpiresInMinutes),
                 signingCredentials: creds);
 
             return new JwtSecurityTokenHandler().WriteToken(token);

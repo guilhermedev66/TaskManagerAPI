@@ -48,13 +48,15 @@ As configuracoes nao sensiveis estao em `appsettings.json`:
 }
 ```
 
-A chave de assinatura do JWT (`Jwt:Key`) nao fica no `appsettings.json` nem versionada no Git. Configure localmente com [user-secrets](https://learn.microsoft.com/aspnet/core/security/app-secrets):
+A chave de assinatura do JWT (`Jwt:Key`) nao fica no `appsettings.json` nem versionada no Git. Configure localmente com [user-secrets](https://learn.microsoft.com/aspnet/core/security/app-secrets), gerando uma chave aleatoria (nao reaproveite um valor fixo de exemplo):
 
 ```bash
-dotnet user-secrets set "Jwt:Key" "uma-chave-aleatoria-forte-com-pelo-menos-32-bytes"
+dotnet user-secrets set "Jwt:Key" "$(openssl rand -base64 48)"
 ```
 
-Sem esse segredo configurado, a API falha ao iniciar com `Jwt:Key não configurado.`. Em producao, defina `Jwt:Key` via variavel de ambiente (`Jwt__Key`) ou outro cofre de segredo do ambiente de deploy — nunca em arquivo versionado.
+`Jwt:Key`, `Jwt:Issuer`, `Jwt:Audience` e `Jwt:ExpiresInMinutes` sao validados na inicializacao (Options Pattern): a API falha ao subir se a chave tiver menos de 32 bytes UTF-8, se Issuer/Audience estiverem vazios ou se ExpiresInMinutes nao for maior que zero. Em producao, defina esses valores via variavel de ambiente (`Jwt__Key`, etc.) ou outro cofre de segredo do ambiente de deploy — nunca em arquivo versionado.
+
+Os testes de integracao (`TaskManagerAPI.Tests`) nao dependem desse segredo: rodam em ambiente `Testing`, com uma chave JWT fixa e exclusiva de teste fornecida em memoria pelo `CustomWebApplicationFactory` — nunca leem os `user-secrets` da maquina.
 
 ## Como Executar
 
