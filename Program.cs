@@ -76,6 +76,13 @@ builder.Services.AddRateLimiter(options =>
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
     options.OnRejected = async (context, cancellationToken) =>
     {
+        var logger = context.HttpContext.RequestServices
+            .GetRequiredService<ILoggerFactory>()
+            .CreateLogger("RateLimiting");
+        logger.LogWarning(
+            "Rate limit exceeded for endpoint {Path}",
+            context.HttpContext.Request.Path);
+
         if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
         {
             context.HttpContext.Response.Headers.RetryAfter = Math.Ceiling(retryAfter.TotalSeconds).ToString();

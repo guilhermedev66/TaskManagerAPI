@@ -20,11 +20,13 @@ namespace TaskManagerAPI.Services
 
         private readonly AppDbContext _context;
         private readonly JwtOptions _jwtOptions;
+        private readonly ILogger<AuthService> _logger;
 
-        public AuthService(AppDbContext context, IOptions<JwtOptions> jwtOptions)
+        public AuthService(AppDbContext context, IOptions<JwtOptions> jwtOptions, ILogger<AuthService> logger)
         {
             _context = context;
             _jwtOptions = jwtOptions.Value;
+            _logger = logger;
         }
 
         public async Task<bool> RegisterAsync(string username, string password, CancellationToken cancellationToken)
@@ -33,6 +35,7 @@ namespace TaskManagerAPI.Services
             var userExists = await _context.Users.AnyAsync(u => u.Username == normalizedUsername, cancellationToken);
             if (userExists)
             {
+                _logger.LogWarning("Registration rejected because the normalized username already exists");
                 return false;
             }
 
@@ -44,6 +47,7 @@ namespace TaskManagerAPI.Services
 
             _context.Users.Add(user);
             await _context.SaveChangesAsync(cancellationToken);
+            _logger.LogInformation("User {UserId} registered", user.Id);
             return true;
         }
 
@@ -55,6 +59,7 @@ namespace TaskManagerAPI.Services
 
             if (user is null || !PasswordHasher.Verify(password, user.PasswordHash, out var needsRehash))
             {
+                _logger.LogWarning("Login rejected due to invalid credentials");
                 return null;
             }
 
@@ -75,6 +80,7 @@ namespace TaskManagerAPI.Services
                 ReplacedByTokenHash = null
             });
             await _context.SaveChangesAsync(cancellationToken);
+            _logger.LogInformation("User {UserId} logged in and started a refresh token family", user.Id);
 
             var accessToken = GenerateAccessToken(user, now);
             var rawRefreshToken = WebEncoders.Base64UrlEncode(refreshBytes);
@@ -85,6 +91,7 @@ namespace TaskManagerAPI.Services
         {
             if (!TryDecodeToken(refreshToken, out var presentedBytes))
             {
+                _logger.LogWarning("Refresh rejected because the token format is invalid");
                 return null;
             }
 
@@ -96,6 +103,7 @@ namespace TaskManagerAPI.Services
 
             if (current is null)
             {
+                _logger.LogWarning("Refresh rejected because the token is unknown");
                 return null;
             }
 
@@ -106,6 +114,9 @@ namespace TaskManagerAPI.Services
                 // dispara a varredura da família.
                 if (current.ReplacedByTokenHash is not null)
                 {
+                    _logger.LogWarning(
+                        "Refresh token reuse detected for family {FamilyId}; revoking the family",
+                        current.FamilyId);
                     await RevokeFamilyAsync(current.FamilyId, now, cancellationToken);
                 }
 
@@ -115,12 +126,14 @@ namespace TaskManagerAPI.Services
             if (current.ExpiresAt <= now)
             {
                 // expiração pura não é reuso — não mexe na família.
+                _logger.LogInformation("Expired refresh token rejected for family {FamilyId}", current.FamilyId);
                 return null;
             }
 
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == current.UserId, cancellationToken);
             if (user is null)
             {
+                _logger.LogWarning("Refresh token references missing user {UserId}", current.UserId);
                 return null;
             }
 
@@ -147,6 +160,9 @@ namespace TaskManagerAPI.Services
 
                 if (reloaded is not null && reloaded.ReplacedByTokenHash is not null)
                 {
+                    _logger.LogWarning(
+                        "Concurrent refresh reuse detected for family {FamilyId}; revoking the family",
+                        reloaded.FamilyId);
                     await RevokeFamilyAsync(reloaded.FamilyId, now, cancellationToken);
                 }
 
@@ -165,6 +181,10 @@ namespace TaskManagerAPI.Services
             });
             await _context.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
+            _logger.LogInformation(
+                "Refresh token rotated for user {UserId} in family {FamilyId}",
+                current.UserId,
+                current.FamilyId);
 
             var accessToken = GenerateAccessToken(user, now);
             var rawNewToken = WebEncoders.Base64UrlEncode(newBytes);
@@ -191,6 +211,10 @@ namespace TaskManagerAPI.Services
             }
 
             await RevokeFamilyAsync(current.FamilyId, now, cancellationToken);
+            _logger.LogInformation(
+                "Refresh token family {FamilyId} revoked during logout for user {UserId}",
+                current.FamilyId,
+                current.UserId);
         }
 
         private async Task RevokeFamilyAsync(Guid familyId, DateTime now, CancellationToken cancellationToken)
