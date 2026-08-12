@@ -1,0 +1,20 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__DefaultConnection: Data Source=/app/data/taskmanager.db
+      Jwt__Key: ${JWT_KEY:?Defina JWT_KEY no arquivo .env}
+      Jwt__Issuer: TaskManagerAPI
+      Jwt__Audience: TaskManagerAPIUsers
+      Jwt__ExpiresInMinutes: 60
+      Jwt__RefreshTokenExpiresInDays: 7
+    volumes:
+      - taskmanager-data:/app/data
+
+volumes:
+  taskmanager-data:

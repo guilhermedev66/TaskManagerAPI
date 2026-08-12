@@ -1,0 +1,14 @@
+.git
+.gitignore
+.agents
+.codex
+.vs
+bin
+obj
+tmp
+TaskManagerAPI.Tests
+*.db
+*.db-shm
+*.db-wal
+.env
+skills-lock.json

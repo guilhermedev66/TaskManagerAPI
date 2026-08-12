@@ -85,6 +85,31 @@ dotnet run
 
 Por padrao, a API inicia no endereco exibido no terminal (ex.: `http://localhost:5078`).
 
+## Executar com Docker
+
+O container executa como usuario nao root, expoe a porta `8080` e persiste o banco SQLite em um volume nomeado.
+
+1. Copie `.env.example` para `.env`.
+2. Gere uma chave aleatoria e defina `JWT_KEY` no `.env` (nao versione esse arquivo):
+
+```bash
+openssl rand -base64 48
+```
+
+3. Construa e inicie a API:
+
+```bash
+docker compose up --build
+```
+
+A API estara disponivel em `http://localhost:8080`. O Docker verifica a prontidao pelo endpoint `/health/ready`; os dados permanecem no volume `taskmanager-data` entre reinicializacoes.
+
+Para encerrar os containers sem apagar o banco:
+
+```bash
+docker compose down
+```
+
 ## Swagger
 
 Com a API rodando, acesse:
