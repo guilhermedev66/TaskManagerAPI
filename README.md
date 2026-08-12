@@ -6,11 +6,14 @@ A ideia foi simular um fluxo que acontece no dia a dia: cadastro e login, geraç
 
 ## Funcionalidades
 
-- Cadastro e login de usuarios com token JWT
+- Cadastro e login de usuarios com access token JWT e refresh token
+- Rotacao de refresh tokens, deteccao de reuso e logout com revogacao da sessao
 - Rotas de tarefas protegidas com autorizacao
+- Isolamento das tarefas por usuario autenticado
 - CRUD completo de tarefas
 - Validacoes com DataAnnotations
 - Filtros por status e busca por titulo
+- Testes automatizados de integracao com xUnit
 - Documentacao interativa via Swagger
 
 ## Tecnologias
@@ -45,7 +48,8 @@ As configuracoes nao sensiveis estao em `appsettings.json`:
 "Jwt": {
   "Issuer": "TaskManagerAPI",
   "Audience": "TaskManagerAPIUsers",
-  "ExpiresInMinutes": 60
+  "ExpiresInMinutes": 60,
+  "RefreshTokenExpiresInDays": 7
 }
 ```
 
@@ -55,7 +59,7 @@ A chave de assinatura do JWT (`Jwt:Key`) nao fica no `appsettings.json` nem vers
 dotnet user-secrets set "Jwt:Key" "$(openssl rand -base64 48)"
 ```
 
-`Jwt:Key`, `Jwt:Issuer`, `Jwt:Audience` e `Jwt:ExpiresInMinutes` sao validados na inicializacao (Options Pattern): a API falha ao subir se a chave tiver menos de 32 bytes UTF-8, se Issuer/Audience estiverem vazios ou se ExpiresInMinutes nao for maior que zero. Em producao, defina esses valores via variavel de ambiente (`Jwt__Key`, etc.) ou outro cofre de segredo do ambiente de deploy — nunca em arquivo versionado.
+`Jwt:Key`, `Jwt:Issuer`, `Jwt:Audience`, `Jwt:ExpiresInMinutes` e `Jwt:RefreshTokenExpiresInDays` sao validados na inicializacao (Options Pattern): a API falha ao subir se a chave tiver menos de 32 bytes UTF-8, se Issuer/Audience estiverem vazios ou se os tempos de expiracao nao forem maiores que zero. Em producao, defina esses valores via variavel de ambiente (`Jwt__Key`, etc.) ou outro cofre de segredo do ambiente de deploy — nunca em arquivo versionado.
 
 Os testes de integracao (`TaskManagerAPI.Tests`) nao dependem desse segredo: rodam em ambiente `Testing`, com uma chave JWT fixa e exclusiva de teste fornecida em memoria pelo `CustomWebApplicationFactory` — nunca leem os `user-secrets` da maquina.
 
@@ -117,9 +121,36 @@ Exemplo de resposta:
 
 ```json
 {
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "refreshToken": "token-opaco..."
 }
 ```
+
+O access token e usado no header `Authorization`. O refresh token e armazenado no banco somente como hash e deve ser enviado para obter um novo par de tokens.
+
+### Renovar tokens
+
+- `POST /api/refresh`
+
+```json
+{
+  "refreshToken": "token-opaco..."
+}
+```
+
+Cada renovacao rotaciona o refresh token. A tentativa de reutilizar um token ja rotacionado revoga toda a familia da sessao.
+
+### Logout
+
+- `POST /api/logout`
+
+```json
+{
+  "refreshToken": "token-opaco..."
+}
+```
+
+O logout revoga a familia do refresh token e retorna `204 No Content`. A operacao e idempotente e nao exige um access token valido.
 
 ## Endpoints de Tarefas (protegidos)
 
@@ -217,12 +248,12 @@ Tarefa de outro usuario continua retornando `404 Not Found` (nao `403`), pra nao
 - `InitialCreate`
 - `AddUserAuth`
 - `AddTaskDetailsAndValidation`
+- `AddUniqueUsernameIndex`
+- `AddTaskOwnership`
+- `AddRefreshTokens`
 
 ## Melhorias Futuras (sugestoes reais)
 
-- Relacionar tarefas por usuario autenticado
-- Refresh token
-- Testes automatizados (xUnit)
 - Docker para ambiente padronizado
 - CI/CD com GitHub Actions
 
