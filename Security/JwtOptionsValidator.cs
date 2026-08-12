@@ -35,6 +35,11 @@ namespace TaskManagerAPI.Security
                 errors.Add("Jwt:ExpiresInMinutes deve ser maior que zero.");
             }
 
+            if (options.RefreshTokenExpiresInDays <= 0)
+            {
+                errors.Add("Jwt:RefreshTokenExpiresInDays deve ser maior que zero.");
+            }
+
             return errors.Count > 0
                 ? ValidateOptionsResult.Fail(errors)
                 : ValidateOptionsResult.Success;

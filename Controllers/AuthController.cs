@@ -32,15 +32,36 @@ namespace TaskManagerAPI.Controllers
         [HttpPost("login")]
         public async Task<ActionResult<AuthResponse>> Login([FromBody] LoginRequest request, CancellationToken cancellationToken)
         {
-            var token = await _authService.LoginAsync(request.Username, request.Password, cancellationToken);
-            if (token is null)
+            var tokens = await _authService.LoginAsync(request.Username, request.Password, cancellationToken);
+            if (tokens is null)
             {
                 return Problem(
                     detail: "Credenciais inválidas.",
                     statusCode: StatusCodes.Status401Unauthorized);
             }
 
-            return Ok(new AuthResponse { Token = token });
+            return Ok(new AuthResponse { Token = tokens.AccessToken, RefreshToken = tokens.RefreshToken });
+        }
+
+        [HttpPost("refresh")]
+        public async Task<ActionResult<AuthResponse>> Refresh([FromBody] RefreshRequest request, CancellationToken cancellationToken)
+        {
+            var tokens = await _authService.RefreshAsync(request.RefreshToken, cancellationToken);
+            if (tokens is null)
+            {
+                return Problem(
+                    detail: "Refresh token inválido.",
+                    statusCode: StatusCodes.Status401Unauthorized);
+            }
+
+            return Ok(new AuthResponse { Token = tokens.AccessToken, RefreshToken = tokens.RefreshToken });
+        }
+
+        [HttpPost("logout")]
+        public async Task<IActionResult> Logout([FromBody] LogoutRequest request, CancellationToken cancellationToken)
+        {
+            await _authService.LogoutAsync(request.RefreshToken, cancellationToken);
+            return NoContent();
         }
     }
 }
