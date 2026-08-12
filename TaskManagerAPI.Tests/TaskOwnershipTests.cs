@@ -44,9 +44,9 @@ public class TaskOwnershipTests : IDisposable
 
         var listResponse = await clientB.GetAsync("/api/tasks");
         listResponse.EnsureSuccessStatusCode();
-        var tasks = await listResponse.Content.ReadFromJsonAsync<List<TaskItem>>();
+        var tasks = await listResponse.Content.ReadFromJsonAsync<PagedResponse<TaskItem>>();
 
-        Assert.Empty(tasks!);
+        Assert.Empty(tasks!.Items);
     }
 
     [Fact]

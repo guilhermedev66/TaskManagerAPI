@@ -13,13 +13,55 @@ namespace TaskManagerAPI.Services
             _context = context;
         }
 
-        public async Task<List<TaskItem>> GetAllAsync(int userId, CancellationToken cancellationToken)
+        public async Task<PagedResponse<TaskItem>> GetAllAsync(
+            int userId,
+            TaskQuery query,
+            CancellationToken cancellationToken)
         {
-            return await _context.Tasks
+            var tasks = _context.Tasks
                 .AsNoTracking()
-                .Where(t => t.UserId == userId)
-                .OrderByDescending(t => t.CreatedAt)
+                .Where(t => t.UserId == userId);
+
+            if (!string.IsNullOrWhiteSpace(query.Title))
+            {
+                var title = query.Title.Trim();
+                tasks = tasks.Where(t => EF.Functions.Like(t.Title, $"%{title}%"));
+            }
+
+            tasks = query.Status switch
+            {
+                TaskStatusFilter.Pending => tasks.Where(t => !t.IsCompleted),
+                TaskStatusFilter.Completed => tasks.Where(t => t.IsCompleted),
+                _ => tasks
+            };
+
+            var totalItems = await tasks.CountAsync(cancellationToken);
+            var orderedTasks = ApplyOrdering(tasks, query.SortBy, query.SortDirection);
+            var items = await orderedTasks
+                .Skip((query.Page - 1) * query.PageSize)
+                .Take(query.PageSize)
                 .ToListAsync(cancellationToken);
+            var totalPages = (int)Math.Ceiling(totalItems / (double)query.PageSize);
+
+            return new PagedResponse<TaskItem>(items, query.Page, query.PageSize, totalItems, totalPages);
+        }
+
+        private static IOrderedQueryable<TaskItem> ApplyOrdering(
+            IQueryable<TaskItem> tasks,
+            TaskSortBy sortBy,
+            SortDirection direction)
+        {
+            return (sortBy, direction) switch
+            {
+                (TaskSortBy.DueDate, SortDirection.Asc) => tasks.OrderBy(t => t.DueDate).ThenBy(t => t.Id),
+                (TaskSortBy.DueDate, SortDirection.Desc) => tasks.OrderByDescending(t => t.DueDate).ThenByDescending(t => t.Id),
+                (TaskSortBy.Priority, SortDirection.Asc) => tasks.OrderBy(t => t.Priority).ThenBy(t => t.Id),
+                (TaskSortBy.Priority, SortDirection.Desc) => tasks.OrderByDescending(t => t.Priority).ThenByDescending(t => t.Id),
+                (TaskSortBy.Title, SortDirection.Asc) => tasks.OrderBy(t => t.Title).ThenBy(t => t.Id),
+                (TaskSortBy.Title, SortDirection.Desc) => tasks.OrderByDescending(t => t.Title).ThenByDescending(t => t.Id),
+                (TaskSortBy.CreatedAt, SortDirection.Asc) => tasks.OrderBy(t => t.CreatedAt).ThenBy(t => t.Id),
+                _ => tasks.OrderByDescending(t => t.CreatedAt).ThenByDescending(t => t.Id)
+            };
         }
 
         public async Task<List<TaskItem>> GetCompletedAsync(int userId, CancellationToken cancellationToken)

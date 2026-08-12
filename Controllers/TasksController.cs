@@ -25,14 +25,16 @@ namespace TaskManagerAPI.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<TaskItem>>> GetTasks(CancellationToken cancellationToken)
+        public async Task<ActionResult<PagedResponse<TaskItem>>> GetTasks(
+            [FromQuery] TaskQuery query,
+            CancellationToken cancellationToken)
         {
             if (!TryGetCurrentUserId(out var userId))
             {
                 return Unauthorized();
             }
 
-            var tasks = await _taskService.GetAllAsync(userId, cancellationToken);
+            var tasks = await _taskService.GetAllAsync(userId, query, cancellationToken);
             return Ok(tasks);
         }
 
