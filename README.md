@@ -1,6 +1,6 @@
 # TaskManagerAPI
 
-API REST para gerenciamento de tarefas, criada como projeto de estudo com foco em um backend completo e proximo de um cenario real. O projeto cobre autenticacao, autorizacao por proprietario, persistencia, seguranca, testes de integracao e automacao de build.
+TaskManagerAPI é uma API REST para gerenciamento de tarefas, desenvolvida como projeto de estudo com foco em um backend completo e próximo de um cenário real. O projeto cobre autenticação, autorização por proprietário, persistência, segurança, testes de integração e automação de build.
 
 A ideia foi simular um fluxo que acontece no dia a dia: cadastro e login, geração de token, rotas protegidas, regras de validação e evolução do banco com migrations.
 
@@ -24,6 +24,7 @@ A ideia foi simular um fluxo que acontece no dia a dia: cadastro e login, geraç
 
 ## Tecnologias
 
+- C#
 - .NET 10 (ASP.NET Core Web API)
 - Entity Framework Core
 - SQLite
@@ -70,7 +71,7 @@ Decisoes importantes:
 
 - [.NET SDK 10](https://dotnet.microsoft.com/en-us/download)
 
-## Configuracao
+## Configuração
 
 As configuracoes nao sensiveis estao em `appsettings.json`:
 
@@ -98,13 +99,13 @@ Os testes de integracao (`TaskManagerAPI.Tests`) nao dependem desse segredo: rod
 
 ## Como Executar
 
-1. Restaurar dependencias:
+1. Restaurar dependências:
 
 ```bash
 dotnet restore
 ```
 
-2. Aplicar migrations no banco:
+2. Aplicar migrations no banco (opcional — a API também aplica automaticamente ao iniciar):
 
 ```bash
 dotnet ef database update
@@ -116,7 +117,7 @@ dotnet ef database update
 dotnet run
 ```
 
-Por padrao, a API inicia no endereco exibido no terminal (ex.: `http://localhost:5078`).
+Por padrão, a API inicia no endereço exibido no terminal (ex.: `http://localhost:5078`).
 
 ## Executar com Docker
 
@@ -145,7 +146,7 @@ docker compose down
 
 ## Swagger
 
-Com a API rodando, acesse:
+Com a API rodando em ambiente de desenvolvimento, acesse:
 
 - `http://localhost:5078/swagger`
 
@@ -156,9 +157,9 @@ Para testar rotas protegidas:
 3. Clique em **Authorize** no Swagger
 4. Informe: `Bearer SEU_TOKEN`
 
-## Autenticacao
+## Autenticação
 
-### Registrar usuario
+### Registrar usuário
 
 - `POST /api/register`
 
@@ -170,6 +171,8 @@ Exemplo de body:
   "password": "Password123"
 }
 ```
+
+Respostas possíveis: `200 OK` em caso de sucesso, `409 Conflict` se o usuário já existir.
 
 ### Login
 
@@ -210,6 +213,8 @@ Cada renovacao rotaciona o refresh token. A tentativa de reutilizar um token ja 
 
 O logout revoga a familia do refresh token e retorna `204 No Content`. A operacao e idempotente e nao exige um access token valido.
 
+O login retorna `200 OK` em caso de sucesso e `401 Unauthorized` se as credenciais forem inválidas.
+
 ## Endpoints de Tarefas (protegidos)
 
 Todos exigem header:
@@ -245,6 +250,8 @@ Exemplo de resposta:
 
 - `GET /api/tasks/{id}`
 
+Retorna `404 Not Found` se a tarefa não existir.
+
 ### Criar tarefa
 
 - `POST /api/tasks`
@@ -254,22 +261,28 @@ Exemplo de body:
 ```json
 {
   "title": "Estudar JWT",
-  "description": "Implementar autenticacao no projeto",
+  "description": "Implementar autenticação no projeto",
   "priority": 2,
   "isCompleted": false,
   "dueDate": "2026-04-15T20:00:00Z"
 }
 ```
 
+Retorna `201 Created`. `dueDate` não pode estar no passado.
+
 ### Atualizar tarefa
 
 - `PUT /api/tasks/{id}`
+
+Retorna `204 No Content`. `dueDate` não pode estar no passado, exceto se a tarefa já estiver marcada como concluída.
 
 ### Deletar tarefa
 
 - `DELETE /api/tasks/{id}`
 
-### Tarefas concluidas
+Retorna `204 No Content`.
+
+### Tarefas concluídas
 
 - `GET /api/tasks/completed`
 
@@ -277,20 +290,19 @@ Exemplo de body:
 
 - `GET /api/tasks/pending`
 
-### Buscar por titulo
+### Buscar por título
 
 - `GET /api/tasks/search?title=texto`
 
 ## Regras da Entidade Task
 
-- `Title` obrigatorio
-- `Title` com no maximo 100 caracteres
+- `Title` obrigatório, com no máximo 100 caracteres
 - `Priority` enum:
   - `0 = Low`
   - `1 = Medium`
   - `2 = High`
 - `CreatedAt` definido automaticamente no servidor
-- `DueDate` opcional
+- `DueDate` opcional, mas não pode estar no passado ao criar ou atualizar uma tarefa pendente
 
 ## Formato de Erros
 
@@ -355,7 +367,7 @@ O workflow `.github/workflows/ci.yml` executa restore, build Release e testes em
 - `AddTaskOwnership`
 - `AddRefreshTokens`
 
-## Melhorias Futuras (sugestoes reais)
+## Melhorias Futuras (sugestões reais)
 
 - Frontend web responsivo consumindo a API
 - Deploy da aplicacao completa
