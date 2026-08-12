@@ -1,6 +1,6 @@
 # TaskManagerAPI
 
-Projeto de estudo com foco em backend real: uma API REST para gerenciamento de tarefas com autenticação JWT, ASP.NET Core, Entity Framework Core e SQLite.
+API REST para gerenciamento de tarefas, criada como projeto de estudo com foco em um backend completo e proximo de um cenario real. O projeto cobre autenticacao, autorizacao por proprietario, persistencia, seguranca, testes de integracao e automacao de build.
 
 A ideia foi simular um fluxo que acontece no dia a dia: cadastro e login, geração de token, rotas protegidas, regras de validação e evolução do banco com migrations.
 
@@ -13,7 +13,13 @@ A ideia foi simular um fluxo que acontece no dia a dia: cadastro e login, geraç
 - CRUD completo de tarefas
 - Validacoes com DataAnnotations
 - Filtros por status e busca por titulo
+- Paginacao e ordenacao das tarefas
+- Rate limiting nos endpoints de autenticacao
+- Health checks de processo e banco de dados
+- Logging estruturado sem dados sensiveis
 - Testes automatizados de integracao com xUnit
+- Execucao em Docker com persistencia do SQLite
+- CI com GitHub Actions
 - Documentacao interativa via Swagger
 
 ## Tecnologias
@@ -23,6 +29,30 @@ A ideia foi simular um fluxo que acontece no dia a dia: cadastro e login, geraç
 - SQLite
 - JWT Bearer Authentication
 - Swashbuckle (Swagger)
+- xUnit e `WebApplicationFactory`
+- Docker e Docker Compose
+- GitHub Actions
+
+## Arquitetura
+
+O projeto mantem uma separacao simples, adequada ao seu tamanho: controllers tratam HTTP e delegam as regras para services; o Entity Framework Core concentra a persistencia no `AppDbContext`.
+
+```mermaid
+flowchart LR
+    Client[Cliente HTTP] --> Controllers[Controllers]
+    Controllers --> Services[Services]
+    Services --> DbContext[AppDbContext]
+    DbContext --> SQLite[(SQLite)]
+    Controllers --> Security[JWT e Rate Limiting]
+```
+
+Decisoes importantes:
+
+- O `UserId` das tarefas vem do token autenticado e nunca do body da requisicao.
+- Recursos pertencentes a outro usuario retornam `404`, evitando revelar sua existencia.
+- Senhas usam PBKDF2-HMAC-SHA256; hashes legados sao migrados somente apos login valido.
+- Refresh tokens sao aleatorios, armazenados apenas como hash e rotacionados a cada uso.
+- O reuso de um refresh token rotacionado revoga toda a familia daquela sessao.
 
 ## Estrutura do Projeto
 
@@ -32,6 +62,9 @@ A ideia foi simular um fluxo que acontece no dia a dia: cadastro e login, geraç
 - `Data/` - `AppDbContext`
 - `Migrations/` - Historico de migrations do EF Core
 - `Security/` - Hash de senha, opcoes e validacao de JWT
+- `Health/` - Verificacao de prontidao do banco
+- `TaskManagerAPI.Tests/` - Testes unitarios e de integracao
+- `.github/workflows/` - Pipeline de build e testes
 
 ## Requisitos
 
@@ -134,7 +167,7 @@ Exemplo de body:
 ```json
 {
   "username": "guilherme",
-  "password": "123456"
+  "password": "Password123"
 }
 ```
 
@@ -185,7 +218,28 @@ Todos exigem header:
 
 ### Listar todas
 
-- `GET /api/tasks`
+- `GET /api/tasks?page=1&pageSize=10&status=pending&title=jwt&sortBy=dueDate&sortDirection=asc`
+
+Parametros opcionais:
+
+- `page`: pagina atual, a partir de 1
+- `pageSize`: quantidade por pagina, entre 1 e 100
+- `status`: `all`, `pending` ou `completed`
+- `title`: busca parcial pelo titulo
+- `sortBy`: `createdAt`, `dueDate`, `priority` ou `title`
+- `sortDirection`: `asc` ou `desc`
+
+Exemplo de resposta:
+
+```json
+{
+  "items": [],
+  "page": 1,
+  "pageSize": 10,
+  "totalItems": 0,
+  "totalPages": 0
+}
+```
 
 ### Buscar por ID
 
@@ -240,7 +294,7 @@ Exemplo de body:
 
 ## Formato de Erros
 
-Respostas de erro (400, 401, 404, 409) usam o formato nativo [ProblemDetails](https://learn.microsoft.com/aspnet/core/web-api/handle-errors) do ASP.NET Core (`Content-Type: application/problem+json`), em vez de string solta ou corpo vazio.
+Respostas de erro (400, 401, 404, 409 e 429) usam o formato nativo [ProblemDetails](https://learn.microsoft.com/aspnet/core/web-api/handle-errors) do ASP.NET Core (`Content-Type: application/problem+json`), em vez de string solta ou corpo vazio.
 
 Erro pontual (ex.: usuario duplicado, credenciais invalidas, DueDate no passado):
 
@@ -268,6 +322,30 @@ Erro de validacao de campo (DataAnnotations em `Username`, `Title`, etc.) usa `V
 
 Tarefa de outro usuario continua retornando `404 Not Found` (nao `403`), pra nao revelar que o recurso existe — ver [Regras da Entidade Task](#regras-da-entidade-task) e o isolamento por usuario no `TasksController`.
 
+## Protecao contra excesso de requisicoes
+
+Os limites sao aplicados por IP e sem fila:
+
+- Cadastro e login: 5 requisicoes por minuto, em uma politica compartilhada.
+- Refresh token: 10 requisicoes por minuto.
+
+Ao exceder o limite, a API retorna `429 Too Many Requests` em `ProblemDetails` e inclui `Retry-After` quando essa informacao esta disponivel.
+
+## Health Checks
+
+- `GET /health/live`: confirma que o processo da API esta respondendo.
+- `GET /health/ready`: confirma tambem que a API consegue acessar o SQLite.
+
+## Testes e CI
+
+A suite possui 60 testes unitarios e de integracao. Os testes de API usam `WebApplicationFactory` e SQLite em memoria, cobrindo autenticacao, ownership, validacoes, `ProblemDetails`, refresh tokens, concorrencia, paginacao, rate limiting e health checks.
+
+```bash
+dotnet test TaskManagerAPI.Tests/TaskManagerAPI.Tests.csproj
+```
+
+O workflow `.github/workflows/ci.yml` executa restore, build Release e testes em pushes e pull requests para `master`.
+
 ## Migrations Criadas
 
 - `InitialCreate`
@@ -279,8 +357,8 @@ Tarefa de outro usuario continua retornando `404 Not Found` (nao `403`), pra nao
 
 ## Melhorias Futuras (sugestoes reais)
 
-- Docker para ambiente padronizado
-- CI/CD com GitHub Actions
+- Frontend web responsivo consumindo a API
+- Deploy da aplicacao completa
 
 ---
 
