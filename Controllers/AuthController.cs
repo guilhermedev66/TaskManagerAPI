@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using TaskManagerAPI.Models;
+using TaskManagerAPI.Security;
 using TaskManagerAPI.Services;
 
 namespace TaskManagerAPI.Controllers
@@ -16,6 +18,7 @@ namespace TaskManagerAPI.Controllers
         }
 
         [HttpPost("register")]
+        [EnableRateLimiting(RateLimitPolicies.Authentication)]
         public async Task<ActionResult> Register([FromBody] RegisterRequest request, CancellationToken cancellationToken)
         {
             var created = await _authService.RegisterAsync(request.Username, request.Password, cancellationToken);
@@ -30,6 +33,7 @@ namespace TaskManagerAPI.Controllers
         }
 
         [HttpPost("login")]
+        [EnableRateLimiting(RateLimitPolicies.Authentication)]
         public async Task<ActionResult<AuthResponse>> Login([FromBody] LoginRequest request, CancellationToken cancellationToken)
         {
             var tokens = await _authService.LoginAsync(request.Username, request.Password, cancellationToken);
@@ -44,6 +48,7 @@ namespace TaskManagerAPI.Controllers
         }
 
         [HttpPost("refresh")]
+        [EnableRateLimiting(RateLimitPolicies.RefreshToken)]
         public async Task<ActionResult<AuthResponse>> Refresh([FromBody] RefreshRequest request, CancellationToken cancellationToken)
         {
             var tokens = await _authService.RefreshAsync(request.RefreshToken, cancellationToken);
