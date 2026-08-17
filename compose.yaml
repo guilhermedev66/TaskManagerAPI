@@ -13,6 +13,7 @@ services:
       Jwt__Audience: TaskManagerAPIUsers
       Jwt__ExpiresInMinutes: 60
       Jwt__RefreshTokenExpiresInDays: 7
+      Cors__AllowedOrigins__0: ${CORS_ALLOWED_ORIGIN:-http://localhost:5173}
     volumes:
       - taskmanager-data:/app/data
 

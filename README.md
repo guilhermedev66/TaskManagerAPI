@@ -95,6 +95,8 @@ dotnet user-secrets set "Jwt:Key" "$(openssl rand -base64 48)"
 
 `Jwt:Key`, `Jwt:Issuer`, `Jwt:Audience`, `Jwt:ExpiresInMinutes` e `Jwt:RefreshTokenExpiresInDays` sao validados na inicializacao (Options Pattern): a API falha ao subir se a chave tiver menos de 32 bytes UTF-8, se Issuer/Audience estiverem vazios ou se os tempos de expiracao nao forem maiores que zero. Em producao, defina esses valores via variavel de ambiente (`Jwt__Key`, etc.) ou outro cofre de segredo do ambiente de deploy — nunca em arquivo versionado.
 
+O CORS permite apenas origens listadas em `Cors:AllowedOrigins`. Em desenvolvimento, `http://localhost:5173` e `http://127.0.0.1:5173` ja estao configurados para o Vite. Em producao, informe cada origem permitida por configuracao, por exemplo `Cors__AllowedOrigins__0=https://seu-frontend.vercel.app`. A API nao usa `AllowAnyOrigin` nem credenciais por cookie.
+
 Os testes de integracao (`TaskManagerAPI.Tests`) nao dependem desse segredo: rodam em ambiente `Testing`, com uma chave JWT fixa e exclusiva de teste fornecida em memoria pelo `CustomWebApplicationFactory` — nunca leem os `user-secrets` da maquina.
 
 ## Como Executar
@@ -129,6 +131,8 @@ O container executa como usuario nao root, expoe a porta `8080` e persiste o ban
 ```bash
 openssl rand -base64 48
 ```
+
+Se o frontend nao estiver em `http://localhost:5173`, ajuste tambem `CORS_ALLOWED_ORIGIN` no `.env`.
 
 3. Construa e inicie a API:
 
@@ -350,7 +354,7 @@ Ao exceder o limite, a API retorna `429 Too Many Requests` em `ProblemDetails` e
 
 ## Testes e CI
 
-A suite possui 60 testes unitarios e de integracao. Os testes de API usam `WebApplicationFactory` e SQLite em memoria, cobrindo autenticacao, ownership, validacoes, `ProblemDetails`, refresh tokens, concorrencia, paginacao, rate limiting e health checks.
+A suite possui 64 testes unitarios e de integracao. Os testes de API usam `WebApplicationFactory` e SQLite em memoria, cobrindo autenticacao, ownership, validacoes, `ProblemDetails`, refresh tokens, concorrencia, paginacao, CORS, rate limiting e health checks.
 
 ```bash
 dotnet test TaskManagerAPI.Tests/TaskManagerAPI.Tests.csproj
