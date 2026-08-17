@@ -53,8 +53,14 @@ namespace TaskManagerAPI.Services
         {
             return (sortBy, direction) switch
             {
-                (TaskSortBy.DueDate, SortDirection.Asc) => tasks.OrderBy(t => t.DueDate).ThenBy(t => t.Id),
-                (TaskSortBy.DueDate, SortDirection.Desc) => tasks.OrderByDescending(t => t.DueDate).ThenByDescending(t => t.Id),
+                (TaskSortBy.DueDate, SortDirection.Asc) => tasks
+                    .OrderBy(t => t.DueDate == null)
+                    .ThenBy(t => t.DueDate)
+                    .ThenBy(t => t.Id),
+                (TaskSortBy.DueDate, SortDirection.Desc) => tasks
+                    .OrderBy(t => t.DueDate == null)
+                    .ThenByDescending(t => t.DueDate)
+                    .ThenByDescending(t => t.Id),
                 (TaskSortBy.Priority, SortDirection.Asc) => tasks.OrderBy(t => t.Priority).ThenBy(t => t.Id),
                 (TaskSortBy.Priority, SortDirection.Desc) => tasks.OrderByDescending(t => t.Priority).ThenByDescending(t => t.Id),
                 (TaskSortBy.Title, SortDirection.Asc) => tasks.OrderBy(t => t.Title).ThenBy(t => t.Id),

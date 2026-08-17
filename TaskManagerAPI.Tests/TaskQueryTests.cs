@@ -24,12 +24,14 @@ public class TaskQueryTests : IDisposable
     private static async Task CreateTaskAsync(
         HttpClient client,
         string title,
-        TaskPriority priority = TaskPriority.Medium)
+        TaskPriority priority = TaskPriority.Medium,
+        DateTime? dueDate = null)
     {
         var response = await client.PostAsJsonAsync("/api/tasks", new CreateTaskRequest
         {
             Title = title,
-            Priority = priority
+            Priority = priority,
+            DueDate = dueDate
         });
         response.EnsureSuccessStatusCode();
     }
@@ -71,6 +73,33 @@ public class TaskQueryTests : IDisposable
             response.Items,
             first => Assert.Equal("Study tests", first.Title),
             second => Assert.Equal("Study API", second.Title));
+    }
+
+    [Theory]
+    [InlineData("asc", "Near deadline", "Far deadline", "No deadline")]
+    [InlineData("desc", "Far deadline", "Near deadline", "No deadline")]
+    public async Task GetTasks_OrdersByDueDate_WithNullDueDatesLast(
+        string direction,
+        string firstTitle,
+        string secondTitle,
+        string thirdTitle)
+    {
+        using var client = await CreateClientAsync();
+        await CreateTaskAsync(client, "No deadline");
+        await CreateTaskAsync(client, "Far deadline", dueDate: DateTime.UtcNow.AddDays(10));
+        await CreateTaskAsync(client, "Near deadline", dueDate: DateTime.UtcNow.AddDays(2));
+
+        var response = await client.GetFromJsonAsync<PagedResponse<TaskItem>>(
+            $"/api/tasks?sortBy=dueDate&sortDirection={direction}");
+
+        Assert.NotNull(response);
+        Assert.Equal(3, response.TotalItems);
+        Assert.Equal(1, response.TotalPages);
+        Assert.Collection(
+            response.Items,
+            first => Assert.Equal(firstTitle, first.Title),
+            second => Assert.Equal(secondTitle, second.Title),
+            third => Assert.Equal(thirdTitle, third.Title));
     }
 
     [Theory]
