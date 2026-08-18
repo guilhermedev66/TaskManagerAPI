@@ -2,6 +2,12 @@
 
 TaskManagerAPI é uma API REST para gerenciamento de tarefas, desenvolvida como projeto de estudo com foco em um backend completo e próximo de um cenário real. O projeto cobre autenticação, autorização por proprietário, persistência, segurança, testes de integração e automação de build.
 
+## Ambiente publicado
+
+- API: https://taskmanagerapi-guilherme.fly.dev (Fly.io, Docker, volume persistente para o SQLite)
+- Frontend: https://taskmanagerfrontend-lac.vercel.app (Vercel)
+- Health checks: [/health/live](https://taskmanagerapi-guilherme.fly.dev/health/live) · [/health/ready](https://taskmanagerapi-guilherme.fly.dev/health/ready)
+
 A ideia foi simular um fluxo que acontece no dia a dia: cadastro e login, geração de token, rotas protegidas, regras de validação e evolução do banco com migrations.
 
 ## Funcionalidades
@@ -373,8 +379,7 @@ O workflow `.github/workflows/ci.yml` executa restore, build Release e testes em
 
 ## Melhorias Futuras (sugestões reais)
 
-- Frontend web responsivo consumindo a API
-- Deploy da aplicacao completa
+- Observabilidade (métricas/tracing) no ambiente publicado
 
 ---
 
