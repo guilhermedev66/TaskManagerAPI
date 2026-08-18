@@ -142,11 +142,8 @@ builder.Services.AddRateLimiter(options =>
 
 var app = builder.Build();
 
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+app.UseSwagger();
+app.UseSwaggerUI();
 
 app.UseStatusCodePages();
 
@@ -155,6 +152,13 @@ app.UseCors(FrontendCorsPolicy);
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
+
+app.MapGet("/", () => Results.Ok(new
+{
+    status = "online",
+    service = "TaskManagerAPI",
+    swagger = "/swagger"
+}));
 
 app.MapControllers();
 app.MapHealthChecks("/health/live", new HealthCheckOptions
